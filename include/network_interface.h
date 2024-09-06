@@ -1,5 +1,3 @@
-#pragma once
-
 #include "receiver.h"
 
 typedef struct {

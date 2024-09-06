@@ -1,5 +1,3 @@
-#pragma once
-
 #include "network_interface.h"
 
 typedef struct {
