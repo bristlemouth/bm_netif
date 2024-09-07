@@ -1,5 +1,6 @@
 typedef struct {
-  void (*const receive)(void *self, unsigned char *data, unsigned int length);
+  unsigned int (*const receive)(void *self, unsigned char *data,
+                                unsigned int length);
 } ReceiverTrait;
 
 typedef struct {
