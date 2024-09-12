@@ -56,16 +56,19 @@ static void adin2111_init(Adin2111 *self, Receiver receiver) {
   self->receiver = receiver;
 }
 
-static void adin2111_send(Adin2111 *self, unsigned char *data,
-                          unsigned int length) {}
+static int adin2111_send(Adin2111 *self, unsigned char *data,
+                         unsigned int length) {
+  // TODO
+  return 0;
+}
 
 static inline void adin2111_init_(void *self, Receiver receiver) {
   adin2111_init(self, receiver);
 }
 
-static inline void adin2111_send_(void *self, unsigned char *data,
-                                  unsigned int length) {
-  adin2111_send(self, data, length);
+static inline int adin2111_send_(void *self, unsigned char *data,
+                                 unsigned int length) {
+  return adin2111_send(self, data, length);
 }
 
 // Build a generic NetworkInterface out of a concrete Adin2111

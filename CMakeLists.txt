@@ -1,12 +1,10 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.29)
 
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Test")
+if(NOT ENABLE_TESTING)
     set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/arm-gcc-toolchain.cmake)
 endif()
 
 project(BristlemouthNetworkInterface VERSION 0.11 LANGUAGES C)
-
-enable_testing()
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED YES)
@@ -27,6 +25,11 @@ target_include_directories(bmnetif PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
 
-if(CMAKE_BUILD_TYPE STREQUAL "Test")
+if(ENABLE_TESTING)
+    set(CMAKE_CXX_FLAGS "-g -Wall -fprofile-arcs -ftest-coverage")
+    set(CMAKE_C_FLAGS "-g -Wall -W -fprofile-arcs -ftest-coverage")
+    set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
+
+    enable_testing()
     add_subdirectory(test)
 endif()
