@@ -1,5 +1,3 @@
-// https://github.com/analogdevicesinc/no-OS/blob/25fed120da08674c3b2211c684918438125bd974/drivers/net/adin1110/adin1110.c
-
 /***************************************************************************//**
  *   @file   adin1110.c
  *   @brief  Source file of the ADIN1110 driver.
