@@ -12,6 +12,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/no_os/include
     ${CMAKE_SOURCE_DIR}/platform/stm32
+    ${CMAKE_SOURCE_DIR}/platform/stm32/generated_u575
 )
 
 set(SOURCES
@@ -19,13 +20,9 @@ set(SOURCES
     no_os/src/no_os_alloc.c
     no_os/src/no_os_crc8.c
     no_os/src/no_os_list.c
-    no_os/src/no_os_mutex.c
     no_os/src/no_os_util.c
     platform/stm32/stm32_delay.c
-    platform/stm32/stm32_dma.c
     platform/stm32/stm32_gpio.c
-    platform/stm32/stm32_irq.c
-    platform/stm32/stm32_spi.c
 )
 
 add_library(adin1110 ${SOURCES})
