@@ -1,0 +1,48 @@
+name: Run Unit Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-14, windows-2022]
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - uses: actions/checkout@v4
+    - name: configure
+      run: |
+        cmake -S. -Bbuild -G "Unix Makefiles" -DENABLE_TESTING=ON
+        mkdir -p coverage
+    - name: build
+      working-directory: ./build
+      run: |
+        make -j
+    - name: test
+      working-directory: ./build
+      run: |
+        ctest -C --output-on-failure --verbose
+    - name: setup python
+      if: contains(matrix.os, 'ubuntu')
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: install gcovr
+      if: contains(matrix.os, 'ubuntu')
+      run: |
+        pip install gcovr==7.2
+    - name: coverage
+      if: contains(matrix.os, 'ubuntu')
+      run:
+        gcovr -r ./src --html-details ./coverage/report.html --html-theme github.dark-green build/test
+    - name: artifacts
+      if: contains(matrix.os, 'ubuntu')
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage_report
+        path: ./coverage
