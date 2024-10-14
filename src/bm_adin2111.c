@@ -78,3 +78,16 @@ NetworkInterface prep_adin2111_netif(Adin2111 *adin) {
                                               .send = adin2111_send_};
   return (NetworkInterface){.trait = &trait, .self = adin};
 }
+
+static int adin2111_send_bare(unsigned char *data, unsigned int length) {
+  // TODO
+  return 0;
+}
+
+Adin2111 create_adin2111(void) {
+  static Adin2111 adin = {
+      .receiver = 0,
+      .send = adin2111_send_bare,
+  };
+  return adin;
+}

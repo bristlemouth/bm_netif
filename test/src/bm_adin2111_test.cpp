@@ -7,3 +7,9 @@ TEST(Adin2111, send) {
   int err = netif.trait->send(netif.self, (unsigned char *)"hello", 5);
   EXPECT_EQ(err, 0);
 }
+
+TEST(Adin2111, send_alt) {
+  Adin2111 adin = create_adin2111();
+  int err = adin.send((unsigned char *)"hello", 5);
+  EXPECT_EQ(err, 0);
+}
