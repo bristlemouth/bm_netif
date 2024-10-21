@@ -19,7 +19,6 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "FreeRTOS.h"
 
 typedef void (* adi_cb_t) (  /*!< Callback function pointer */
     void      *pCBParam,         /*!< Client supplied callback param */
@@ -27,7 +26,7 @@ typedef void (* adi_cb_t) (  /*!< Callback function pointer */
     void      *pArg);            /*!< Pointer to the event specific argument */
 
 // Function pointer to spi/irq event callback
-typedef void (*adi_irq_evt_t)(BaseType_t *pxHigherPriorityTaskWoken);
+typedef void (*adi_irq_evt_t)(bool *pxHigherPriorityTaskWoken);
 
 /*Functions prototypes*/
 uint32_t adi_bsp_register_irq_callback (adi_cb_t const *intCallback, void * hDevice);

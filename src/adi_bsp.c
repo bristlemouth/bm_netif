@@ -1,18 +1,7 @@
 #include <errno.h>
 #include <string.h>
 
-// Includes for FreeRTOS
-#include "FreeRTOS.h"
-#include "semphr.h"
-#include "task.h"
-
 #include "adi_bsp.h"
-#include "bsp.h"
-#include "gpioISR.h"
-#include "io.h"
-#include "protected_spi.h"
-#include "task_priorities.h"
-#include "app_util.h"
 
 #define RESET_DELAY (1)
 #define AFTER_RESET_DELAY (100)
@@ -62,7 +51,7 @@ static bool adin_bsp_gpio_callback_fromISR(const void *pinHandle, uint8_t value,
   (void)pinHandle;
   (void)value;
 
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  bool xHigherPriorityTaskWoken = false;
 
   if (_irq_evt_cb) {
     _irq_evt_cb(&xHigherPriorityTaskWoken);

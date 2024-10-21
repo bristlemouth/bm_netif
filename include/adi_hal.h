@@ -21,7 +21,6 @@
 #include <stdbool.h>
 #include "adi_eth_common.h"
 #include "adi_hal_port_specific.h"
-#include "bsp.h"
 
 #ifdef __cplusplus
 extern "C" {
