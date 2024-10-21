@@ -1,3 +1,4 @@
+#include "adin2111.h"
 #include "bm_adin2111.h"
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -85,6 +86,10 @@ static int adin2111_send_bare(unsigned char *data, unsigned int length) {
 }
 
 Adin2111 create_adin2111(void) {
+  adin2111_DeviceStruct_t adin_device;
+  adin2111_DriverConfig_t adin_cfg;
+  adi_eth_Result_e result = adin2111_Init(&adin_device, &adin_cfg);
+
   static Adin2111 adin = {
       .receiver = 0,
       .send = adin2111_send_bare,
