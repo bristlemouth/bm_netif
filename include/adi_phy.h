@@ -19,20 +19,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-
-#if defined(ADIN1100)
-#include "ADIN1100_addr_rdef.h"
-#if defined(MDIO_CL22)
-#include "ADIN1100_addr_rdef_22.h"
-#endif
-#elif defined(ADIN1110)
-#include "ADIN1110_phy_addr_rdef.h"
-#elif defined(ADIN2111)
+#include "adi_hal.h"
 #include "ADIN2111_phy_addr_rdef.h"
-#endif
-
 #include "adi_eth_common.h"
-#include "hal.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -12,8 +12,8 @@
      This file was auto-generated. Do not make local changes to this file.
    ================================================================================ */
 
-#ifndef ADIN2111_MAC_TYPEDEFS_H
-#define ADIN2111_MAC_TYPEDEFS_H
+#ifndef __ADIN2111_MAC_TYPEDEFS_H__
+#define __ADIN2111_MAC_TYPEDEFS_H__
 
 /* pickup integer types */
 #if defined(_LANGUAGE_C) || (defined(__GNUC__) && !defined(__ASSEMBLER__))
@@ -2822,5 +2822,5 @@ typedef struct _ADI_MAC_P2_TTSCCL_t {
 #pragma pop
 #endif
 
-#endif /* ADIN2111_MAC_TYPEDEFS_H */
+#endif /* __ADIN2111_MAC_TYPEDEFS_H__ */
 

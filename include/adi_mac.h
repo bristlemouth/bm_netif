@@ -13,27 +13,21 @@
  *  @{
  */
 
-#ifndef ADI_MAC_H
-#define ADI_MAC_H
+#ifndef __ADI_MAC_H__
+#define __ADI_MAC_H__
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "adi_hal.h"
 
 /* The PHY registers are included because the MAC code has to access */
 /* interrupt status registers from the PHY.                          */
-#if defined(ADIN1110)
-#include "ADIN1110_mac_addr_rdef.h"
-#include "ADIN1110_mac_typedefs.h"
-#include "ADIN1110_phy_addr_rdef.h"
-#elif defined(ADIN2111)
 #include "ADIN2111_mac_addr_rdef.h"
 #include "ADIN2111_mac_typedefs.h"
 #include "ADIN2111_phy_addr_rdef.h"
-#endif
-
 #include "adi_eth_common.h"
-#include "hal.h"
+#include "adi_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,7 +42,7 @@ extern "C" {
 #endif
 /*! Size of the Rx queue, can be previously defined by the application. */
 #if !defined(RX_QUEUE_NUM_ENTRIES)
-#define RX_QUEUE_NUM_ENTRIES            (4)
+#define RX_QUEUE_NUM_ENTRIES            (8)
 #endif
 
 /*! Actual size of the Rx queue. */
@@ -70,7 +64,7 @@ extern "C" {
 #define ADI_MAC_DEVICE_SIZE_QUEUE_HI    (0)
 #endif
 
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
 /*! Size of the MAC device structure components addded when OPEN Alliance SPI mode is enabled. */
 #define ADI_MAC_DEVICE_SIZE_OA          (2 * 4 + 15 * 4 + sizeof(adi_mac_OaErrorStats_t) + ADI_OA_RX_BACKUP_BUF_SIZE + 2 * ADI_MAC_SPI_CTRL_BUF_SIZE)
 #else
@@ -228,7 +222,7 @@ typedef enum
  */
 typedef struct
 {
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     bool    p1TimestampReadyA;  /*!< Capture status of Port 1 egress timestamp A */
     bool    p1TimestampReadyB;  /*!< Capture status of Port 1 egress timestamp B */
     bool    p1TimestampReadyC;  /*!< Capture status of Port 1 egress timestamp C */
@@ -270,10 +264,8 @@ typedef enum
     ADI_MAC_EVT_TX_RDY,                     /*!< TX_RDY asserted.                                               */
     ADI_MAC_EVT_P1_RX_RDY,                  /*!< P1_RX_RDY asserted.                                            */
     ADI_MAC_EVT_STATUS,                     /*!< Nonzero unmasked status.                                       */
-#if defined(ADIN2111)
     ADI_MAC_EVT_DYN_TBL_UPDATE,             /*!< Dynamic table can be updated.                                  */
-#endif
-#if !defined(SPI_OA_EN) || defined(DOXYGEN)
+#if CONFIG_SPI_OA_EN == 0
     ADI_MAC_EVT_RX_FRAME_RDY,               /*!< New frame ready to be read from the Rx FIFO (Generic SPI only).*/
 #endif
     ADI_MAC_EVT_TIMESTAMP_RDY,              /*!< Egress timestamp has been captured in TTSCA register.          */
@@ -351,7 +343,7 @@ typedef struct
     adi_eth_Callback_t          cbFunc;             /*!< Callback function. Called after the buffer was written to
                                                      *   the Tx FIFO in transmit or read from Rx FIFO on receive.   */
     adi_mac_RxFifoPrio_e        prio;               /*!< Indicates the Rx FIFO priority the frame was read from.    */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     uint32_t                    port;               /*!< Port  (0/1) on which the frame will transmitted/received.  */
 #else
     uint32_t                    rsvd;               /*!< Reserved.                                                  */
@@ -379,7 +371,7 @@ typedef enum
 typedef struct
 {
     bool    P1_FWD_UNK_TO_HOST;         /*!< Forward unknown frames received on Port 1 to host.     */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     bool    P2_FWD_UNK_TO_HOST;         /*!< Forward unknown frames received on Port 2 to host.     */
     bool    P1_FWD_UNK_TO_P2;           /*!< Forward unknown frames received on Port 1 to Port 2.   */
     bool    P2_FWD_UNK_TO_P1;           /*!< FOrward unknown frames received on Port 2 to Port 1.   */
@@ -408,7 +400,7 @@ typedef enum
  */
 typedef enum
 {
-    ADI_MAC_HTX_FIFO_SIZE_0K  = (MAC_FIFO_SIZE_HTX_SIZE_TXSIZE_0K),     /*!< 0kB Host Tx FIFO.   */  
+    ADI_MAC_HTX_FIFO_SIZE_0K  = (MAC_FIFO_SIZE_HTX_SIZE_TXSIZE_0K),     /*!< 0kB Host Tx FIFO.   */
     ADI_MAC_HTX_FIFO_SIZE_2K  = (MAC_FIFO_SIZE_HTX_SIZE_TXSIZE_2K),     /*!< 2kB Host Tx FIFO.   */
     ADI_MAC_HTX_FIFO_SIZE_4K  = (MAC_FIFO_SIZE_HTX_SIZE_TXSIZE_4K),     /*!< 4kB Host Tx FIFO.   */
     ADI_MAC_HTX_FIFO_SIZE_6K  = (MAC_FIFO_SIZE_HTX_SIZE_TXSIZE_6K),     /*!< 6kB Host Tx FIFO.   */
@@ -419,7 +411,7 @@ typedef enum
     ADI_MAC_HTX_FIFO_SIZE_16K = (MAC_FIFO_SIZE_HTX_SIZE_TXSIZE_16K),    /*!< 16kB Host Tx FIFO.  */
 } adi_mac_HtxFifoSize_e;
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
 /*!
  * @brief Port transmit FIFO size definitions.
  */
@@ -442,7 +434,7 @@ typedef enum
  */
 typedef struct
 {
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     adi_mac_HtxFifoSize_e   htxSize;        /*!< Size of the host Tx FIFO. */
     adi_mac_RxFifoSize_e    p1RxLoSize;     /*!< Size of the Port 1 low-priority Rx FIFO. */
     adi_mac_RxFifoSize_e    p1RxHiSize;     /*!< Size of the Port 1 high-priority Rx FIFO. */
@@ -462,12 +454,12 @@ typedef struct
  */
 typedef enum
 {
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     ADI_MAC_CLEAR_ALL_FIFOS     = (BITM_MAC_FIFO_CLR_LES_FIFOS_CLR),        /*!< Clear all FIFOs.               */
     ADI_MAC_CLEAR_P2P_FIFOS     = (BITM_MAC_FIFO_CLR_LES_P2P_FIFOS_CLR),    /*!< Clear port-to-port Tx FIFOs.   */
 #endif
     ADI_MAC_CLEAR_RX_FIFO       = (BITM_MAC_FIFO_CLR_MAC_RXF_CLR),          /*!< Clear Rx FIFOs.                */
-#if !defined(ADIN2111)
+#if !defined(CONFIG_ETH_ADIN2111)
     ADI_MAC_CLEAR_TX_FIFO       = (BITM_MAC_FIFO_CLR_MAC_TXF_CLR),          /*!< Clear host Tx FIFOs.           */
 #endif
 } adi_mac_FifoClrMode_e;
@@ -551,7 +543,7 @@ typedef struct
     uint32_t    p1StatusMasked;         /*!< PHY_SUBSYS_IRQ_STATUS and CRSM_IRQ_STATUS register values (the latter in LSBytes)
                                              masked to only contain active interrupts via \ref adi_mac_Device_t.phyIrqMask.                         */
     uint32_t    p1Status;               /*!< Unmasked PHY_SUBSYS_IRQ_STATUS and CRSM_IRQ_STATUS register values (the latter in LSBytes).            */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     uint32_t    p2StatusMasked;         /*!< Port 2 PHY_SUBSYS_IRQ_STATUS and CRSM_IRQ_STATUS register values (the latter in LSBytes)
                                              masked to only contain active interrupts via \ref adi_mac_Device_t.phyIrqMask.                         */
     uint32_t    p2Status;               /*!< Unmasked Port 2 PHY_SUBSYS_IRQ_STATUS and CRSM_IRQ_STATUS register values (the latter in LSBytes).     */
@@ -636,7 +628,7 @@ typedef struct
     adi_mac_StatusRegisters_t       statusRegisters;                            /*!< Status register values updated on interrupt assertion. */
     uint32_t                        phyIrqMask;                                 /*!< Interrupt mask for PHY status regsiters.               */
 
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
     /* Only used for OA SPI */
     uint32_t                        oaTxc;                                      /*!< TXC value read from the OA footer.                     */
     uint32_t                        oaRca;                                      /*!< RCA value read from the OA footer.                     */
@@ -691,7 +683,7 @@ typedef struct
 #endif
     adi_eth_Result_e (*SetForwardMode)          (adi_mac_Device_t *hDevice, adi_mac_ForwardMode_t mode, uint32_t mask);
     adi_eth_Result_e (*GetForwardMode)          (adi_mac_Device_t *hDevice, adi_mac_ForwardMode_t *pMode);
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
     adi_eth_Result_e (*SetChunkSize)            (adi_mac_Device_t *hDevice, adi_mac_OaCps_e cps);
     adi_eth_Result_e (*GetChunkSize)            (adi_mac_Device_t *hDevice, adi_mac_OaCps_e *pCps);
 #endif
@@ -721,7 +713,7 @@ void                                            spiCallback(void *pCBParam, uint
 
 /* Forward declaration of functions used at MAC-level. */
 adi_eth_Result_e        MAC_SendFrame               (adi_mac_Device_t *hDevice, adi_mac_FrameStruct_t *pFrame);
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
 adi_eth_Result_e        oaStateMachine              (adi_mac_Device_t *hDevice);
 void                    oaIrqHandler                (adi_mac_Device_t *hDevice);
 #else
@@ -747,4 +739,4 @@ void                    queueRemove                 (adi_mac_Queue_t *pQueue);
 }
 #endif
 
-#endif /* ADI_MAC_H */
+#endif /* __ADI_MAC_H__ */

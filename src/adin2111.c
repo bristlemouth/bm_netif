@@ -35,6 +35,7 @@ static uint32_t PhyRead(uint8_t hwAddr, uint32_t regAddr, uint16_t *data)
 /* Callback from frame receive, used to update the dynamic forwarding table. */
 static void cbRx(void *pCBParam, uint32_t Event, void *pArg)
 {
+    (void) Event;
     adin2111_DeviceHandle_t     hDevice;
     adi_eth_BufDesc_t           *pBufDesc;
 
@@ -147,9 +148,11 @@ adi_eth_Result_e adin2111_Init(adin2111_DeviceHandle_t hDevice, adin2111_DriverC
     {
         goto end;
     }
-    macConfig2.P1_FWD_UNK2P2 = 1;
-    macConfig2.P2_FWD_UNK2P1 = 1;
-    macConfig2.PORT_CUT_THRU_EN = 1;
+    // macConfig2.P1_FWD_UNK2P2 = 1;
+    // macConfig2.P2_FWD_UNK2P1 = 1;
+    macConfig2.P1_FWD_UNK2HOST = 1;
+    macConfig2.P2_FWD_UNK2HOST = 1;
+    macConfig2.PORT_CUT_THRU_EN = 0;
     result = adin2111_WriteRegister(hDevice, ADDR_MAC_CONFIG2, macConfig2.VALUE32);
     if (result != ADI_ETH_SUCCESS)
     {
@@ -195,6 +198,8 @@ adi_eth_Result_e adin2111_Init(adin2111_DeviceHandle_t hDevice, adin2111_DriverC
     }
 
     hDevice->pMacDevice->irqMask1 &= ~BITM_MAC_IMASK1_P2_PHYINT_MASK;
+    //hDevice->pMacDevice->irqMask1 &= ~BITM_MAC_IMASK1_P1_RX_RDY_MASK;
+    //hDevice->pMacDevice->irqMask1 &= ~BITM_MAC_IMASK1_P2_RX_RDY_MASK;
     result = adin2111_WriteRegister(hDevice, ADDR_MAC_IMASK1, hDevice->pMacDevice->irqMask1);
     if (result != ADI_ETH_SUCCESS)
     {
@@ -844,7 +849,7 @@ adi_eth_Result_e adin2111_SubmitRxBufferHp(adin2111_DeviceHandle_t hDevice, adi_
 }
 #endif
 
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
 /*!
  * @brief           Configure the chunk size used in OPEN Alliance frame transfers.
  *
@@ -1062,7 +1067,7 @@ adi_eth_Result_e adin2111_SetPromiscuousMode(adin2111_DeviceHandle_t hDevice, ad
 {
     adi_eth_Result_e result = ADI_ETH_SUCCESS;
     adi_mac_ForwardMode_t mode;
-    uint32_t mask;
+    uint32_t mask = 0;
 
     if ((port != ADIN2111_PORT_1) && (port != ADIN2111_PORT_2))
     {
@@ -1143,7 +1148,7 @@ adi_eth_Result_e adin2111_SetPortForwardMode(adin2111_DeviceHandle_t hDevice, ad
 {
     adi_eth_Result_e result = ADI_ETH_SUCCESS;
     adi_mac_ForwardMode_t mode;
-    uint32_t mask;
+    uint32_t mask = 0;
 
     if ((port != ADIN2111_PORT_1) && (port != ADIN2111_PORT_2))
     {

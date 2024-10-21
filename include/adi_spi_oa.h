@@ -9,11 +9,10 @@
  *---------------------------------------------------------------------------
  */
 
-#ifndef ADI_SPI_OA_H
-#define ADI_SPI_OA_H
+#ifndef __ADI_SPI_OA_H__
+#define __ADI_SPI_OA_H__
 
 #include "adi_mac.h"
-#include "hal.h"
 #include <math.h>
 
 #ifdef __cplusplus
@@ -101,5 +100,5 @@ typedef struct
 }
 #endif
 
-#endif /* ADI_SPI_OA_H */
+#endif /* __ADI_SPI_OA_H__ */
 

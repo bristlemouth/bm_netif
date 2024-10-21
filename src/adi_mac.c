@@ -10,7 +10,7 @@
  */
 
 #include "adi_mac.h"
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
 #include "adi_spi_oa.h"
 #else
 #include "adi_spi_generic.h"
@@ -50,7 +50,6 @@ static adi_eth_Result_e     waitMdioReady               (adi_mac_Device_t *hDevi
 static adi_eth_Result_e     macInit             (adi_mac_Device_t *hDevice);
 static adi_eth_Result_e     waitDeviceReady     (adi_mac_Device_t *hDevice);
 static adi_eth_Result_e     MAC_ProcessTxQueue  (adi_mac_Device_t *hDevice);
-
 
 /****************************************/
 /****************************************/
@@ -125,7 +124,7 @@ void queueRemove(adi_mac_Queue_t *pQueue)
 /****************************************/
 /****************************************/
 
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
 static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
 {
     adi_mac_Device_t        *hDevice = (adi_mac_Device_t *)pCBParam;
@@ -141,6 +140,9 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
 
     (void)Event;
     (void)pArg;
+
+    gpio_pin_configure_dt(&user7, GPIO_OUTPUT_ACTIVE);
+    gpio_pin_configure_dt(&user7, GPIO_OUTPUT_INACTIVE);
 
     /* Read interrupt status and immediately clear the status bits */
     result = MAC_ReadRegister(hDevice, ADDR_MAC_STATUS0, &status0.VALUE32);
@@ -169,7 +171,7 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
     hDevice->statusRegisters.status1Masked = status1Masked.VALUE32;
     hDevice->statusRegisters.p1StatusMasked = ADI_MAC_PHY_STATUS_INIT_VAL;
     hDevice->statusRegisters.p1Status = ADI_MAC_PHY_STATUS_INIT_VAL;
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     hDevice->statusRegisters.p2StatusMasked = ADI_MAC_PHY_STATUS_INIT_VAL;
     hDevice->statusRegisters.p2Status = ADI_MAC_PHY_STATUS_INIT_VAL;
 #endif
@@ -204,7 +206,7 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
     }
 
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     if (hDevice->statusRegisters.status1Masked & BITM_MAC_STATUS1_P2_PHYINT)
     {
         result = MAC_PhyRead(hDevice, 2, ADDR_CRSM_IRQ_STATUS, &val16);
@@ -234,7 +236,7 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
 
 #endif
 
-#if !defined(ADIN2111)
+#if !defined(CONFIG_ETH_ADIN2111)
 
     /* Link status and link status change behave differently in ADIN2111 */
     if (status1Masked.LINK_CHANGE)
@@ -257,7 +259,7 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
 #endif
 
     /* Captured timestamp availability flags are different in ADIN2111 */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     if ((status0Masked.TTSCAA | status0Masked.TTSCAB | status0Masked.TTSCAC) | (status1Masked.P2_TTSCAA | status1Masked.P2_TTSCAB | status1Masked.P2_TTSCAC))
 #else
     if (status0Masked.TTSCAA | status0Masked.TTSCAB | status0Masked.TTSCAC)
@@ -265,7 +267,7 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
     {
         if (hDevice->cbFunc[ADI_MAC_EVT_TIMESTAMP_RDY] != NULL)
         {
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
             timestampReady.p1TimestampReadyA = (bool)status0Masked.TTSCAA;
             timestampReady.p1TimestampReadyB = (bool)status0Masked.TTSCAB;
             timestampReady.p1TimestampReadyC = (bool)status0Masked.TTSCAC;
@@ -295,20 +297,21 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
     if (!hDevice->pendingCtrl)
     {
         /* If RX_RDY is asserted, do not clear TX_RDY, as we prioritize reading frames */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
         if (status1.P1_RX_RDY || status1.P2_RX_RDY)
 #else
         if (status1.P1_RX_RDY)
 #endif
         {
 #if ADI_PAUSE_RX_IF_NO_BUFFERS
+#error adsafsasdf
             if (queueIsEmpty(hDevice->pRxQueue))
             {
                 /* P*_RX_RDY interrupt sources stay asserted for as long as there is something  */
                 /* to read in RxFIFO, but if there are no buffers to read to, the IRQ will keep */
                 /* being asserted. To avoid a lockup, the P*_RX_RDY interrupts sources are      */
                 /* masked until an Rx buffer is submitted to the driver.                        */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
                 irqMask1 |= ((1 << BITP_MAC_IMASK1_P1_RX_RDY_MASK) | (1 << BITP_MAC_IMASK1_P2_RX_RDY_MASK));
 #else
                 irqMask1 |= (1 << BITP_MAC_IMASK1_P1_RX_RDY_MASK);
@@ -360,7 +363,7 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
         goto end;
     }
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     if (!queueIsEmpty(hDevice->pRxQueue) && (status1.P1_RX_RDY || status1.P2_RX_RDY))
     {
         ADI_HAL_DISABLE_IRQ(hDevice->adinDevice);
@@ -399,6 +402,10 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
             }
         }
 
+        if (status1.TX_RDY) {
+            ADI_HAL_SET_PENDING_IRQ(hDevice->adinDevice);
+        }
+        gpio_pin_configure_dt(&user7, GPIO_OUTPUT_ACTIVE);
     }
 #else
     if (!queueIsEmpty(hDevice->pRxQueue) && (status1.P1_RX_RDY))
@@ -439,6 +446,7 @@ static void macCallback(void *pCBParam, uint32_t Event, void *pArg)
 
 end:
 
+    gpio_pin_configure_dt(&user7, GPIO_OUTPUT_ACTIVE);
     if (result == ADI_ETH_SUCCESS)
     {
         hDevice->irqMask1 = irqMask1;
@@ -510,7 +518,7 @@ adi_eth_Result_e MAC_Init(adi_mac_Device_t **phDevice, adi_mac_DriverConfig_t *c
     hDevice->statusRegisters.status1 = 0;
     hDevice->statusRegisters.p1StatusMasked = ADI_MAC_PHY_STATUS_INIT_VAL;
     hDevice->statusRegisters.p1Status = ADI_MAC_PHY_STATUS_INIT_VAL;
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     hDevice->statusRegisters.p2StatusMasked = ADI_MAC_PHY_STATUS_INIT_VAL;
     hDevice->statusRegisters.p2Status = ADI_MAC_PHY_STATUS_INIT_VAL;
 #endif
@@ -533,7 +541,7 @@ adi_eth_Result_e MAC_Init(adi_mac_Device_t **phDevice, adi_mac_DriverConfig_t *c
     /* State needs to advance from uninitialized */
     hDevice->state = ADI_MAC_STATE_INITIALIZED;
 
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
     /* Initialize with maximum number of Tx credits */
     hDevice->oaTxc = 31;
     /* Initialize with no Rx chunks available */
@@ -598,10 +606,10 @@ static adi_eth_Result_e macInit(adi_mac_Device_t *hDevice)
     /* IMASK1 */
     hDevice->irqMask1 = 0xFFFFFFFF;
     hDevice->irqMask1 &= ~(
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
                             BITM_MAC_IMASK1_TX_RDY_MASK |
                             BITM_MAC_IMASK1_P1_RX_RDY_MASK |
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
                             BITM_MAC_IMASK1_P2_RX_RDY_MASK |
 #endif
 #endif
@@ -609,7 +617,7 @@ static adi_eth_Result_e macInit(adi_mac_Device_t *hDevice)
                             BITM_MAC_IMASK1_SPI_ERR_MASK |
                             BITM_MAC_IMASK1_RX_ECC_ERR_MASK |
                             BITM_MAC_IMASK1_TX_ECC_ERR_MASK
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
                             | BITM_MAC_IMASK1_P2_TXFCSEM
 #endif
                             );
@@ -839,7 +847,7 @@ adi_eth_Result_e MAC_RegisterCallback(adi_mac_Device_t *hDevice, adi_eth_Callbac
     {
         case ADI_MAC_EVT_LINK_CHANGE:
              /* Link status and link status change behave differently in ADIN2111 */
-#if !defined(ADIN2111)
+#if !defined(CONFIG_ETH_ADIN2111)
             if (hDevice->irqMask1 & BITM_MAC_IMASK1_LINK_CHANGE_MASK)
             {
                 hDevice->irqMask1 &= ~BITM_MAC_IMASK1_LINK_CHANGE_MASK;
@@ -854,7 +862,7 @@ adi_eth_Result_e MAC_RegisterCallback(adi_mac_Device_t *hDevice, adi_eth_Callbac
                 result = ADI_ETH_NO_TS_FORMAT;
                 goto end;
             }
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
             if (hDevice->irqMask1 & (BITM_MAC_IMASK1_P2_TTSCAAM | BITM_MAC_IMASK1_P2_TTSCABM | BITM_MAC_IMASK1_P2_TTSCACM))
             {
                 hDevice->irqMask1 &= ~(BITM_MAC_IMASK1_P2_TTSCAAM | BITM_MAC_IMASK1_P2_TTSCABM | BITM_MAC_IMASK1_P2_TTSCACM);
@@ -926,6 +934,7 @@ adi_eth_Result_e MAC_ReadRegister(adi_mac_Device_t *hDevice, uint16_t regAddr, u
 
     /* Wait for ongoing SPI transaction to finish, with a timeout. */
     timeout = ADI_SPI_TIMEOUT;
+
     while (timeout && (hDevice->spiState != ADI_MAC_SPI_STATE_READY))
     {
         timeout--;
@@ -937,7 +946,7 @@ adi_eth_Result_e MAC_ReadRegister(adi_mac_Device_t *hDevice, uint16_t regAddr, u
         goto end;
     }
 
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
     result = MAC_Read(hDevice, regAddr, &buf, ADI_MAC_SPI_ACCESS_SIZE, true);
 
 #if (ADI_MAC_SPI_ACCESS_SIZE == 2)
@@ -960,9 +969,6 @@ adi_eth_Result_e MAC_ReadRegister(adi_mac_Device_t *hDevice, uint16_t regAddr, u
     hDevice->state = ADI_MAC_STATE_CONTROL_START;
 
     oaStateMachine(hDevice);
-
-    while (hDevice->state != ADI_MAC_STATE_READY)
-      ;
 
     if (hDevice->spiErr)
     {
@@ -1019,6 +1025,7 @@ adi_eth_Result_e MAC_WriteRegister(adi_mac_Device_t *hDevice, uint16_t regAddr, 
 
     /* Wait for ongoing SPI transaction to finish, with a timeout. */
     timeout = ADI_SPI_TIMEOUT;
+
     while (timeout && (hDevice->spiState != ADI_MAC_SPI_STATE_READY))
     {
         timeout--;
@@ -1030,7 +1037,7 @@ adi_eth_Result_e MAC_WriteRegister(adi_mac_Device_t *hDevice, uint16_t regAddr, 
         goto end;
     }
 
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
 
 #if (ADI_MAC_SPI_ACCESS_SIZE == 2)
     *(uint16_t *)buf = HTON16(regData);
@@ -1054,9 +1061,6 @@ adi_eth_Result_e MAC_WriteRegister(adi_mac_Device_t *hDevice, uint16_t regAddr, 
     hDevice->state = ADI_MAC_STATE_CONTROL_START;
 
     oaStateMachine(hDevice);
-
-    while (hDevice->state != ADI_MAC_STATE_READY)
-      ;
 
     if (hDevice->spiErr)
     {
@@ -1305,7 +1309,7 @@ end:
 adi_eth_Result_e MAC_SubmitRxBuffer(adi_mac_Device_t *hDevice, adi_eth_BufDesc_t *pBufDesc)
 {
     adi_eth_Result_e    result = ADI_ETH_SUCCESS;
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
 #if ADI_PAUSE_RX_IF_NO_BUFFERS
     uint32_t            rxRdyMask;
 #endif
@@ -1342,11 +1346,11 @@ adi_eth_Result_e MAC_SubmitRxBuffer(adi_mac_Device_t *hDevice, adi_eth_BufDesc_t
 
     queueAdd(&hDevice->rxQueueLp);
 
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
 #if ADI_PAUSE_RX_IF_NO_BUFFERS
     /* If RX_RDY interrupt sources were masked before   */
     /* due to no available Rx buffers, unmask them now. */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     rxRdyMask = ((1 << BITP_MAC_IMASK1_P1_RX_RDY_MASK) | (1 << BITP_MAC_IMASK1_P2_RX_RDY_MASK));
 #else
     rxRdyMask = (1 << BITP_MAC_IMASK1_P1_RX_RDY_MASK);
@@ -1381,7 +1385,7 @@ end:
 adi_eth_Result_e MAC_SubmitRxBufferHp(adi_mac_Device_t *hDevice, adi_eth_BufDesc_t *pBufDesc)
 {
     adi_eth_Result_e    result = ADI_ETH_SUCCESS;
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
 #if ADI_PAUSE_RX_IF_NO_BUFFERS
     uint32_t            rxRdyMask;
 #endif
@@ -1418,11 +1422,11 @@ adi_eth_Result_e MAC_SubmitRxBufferHp(adi_mac_Device_t *hDevice, adi_eth_BufDesc
 
     queueAdd(&hDevice->rxQueueHp);
 
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
 #if ADI_PAUSE_RX_IF_NO_BUFFERS
     /* If RX_RDY interrupt sources were masked before   */
     /* due to no available Rx buffers, unmask them now. */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     rxRdyMask = ((1 << BITP_MAC_IMASK1_P1_RX_RDY_MASK) | (1 << BITP_MAC_IMASK1_P2_RX_RDY_MASK));
 #else
     rxRdyMask = (1 << BITP_MAC_IMASK1_P1_RX_RDY_MASK);
@@ -1512,8 +1516,8 @@ adi_eth_Result_e MAC_GetStatCounters(adi_mac_Device_t *hDevice, uint32_t port, a
         goto end;
     }
 
-#if defined(SPI_OA_EN)
-#if defined(ADIN2111)
+#if defined(CONFIG_SPI_OA_EN)
+#if defined(CONFIG_ETH_ADIN2111)
     if (port)
     {
         baseAddr = ADDR_MAC_P2_RX_FRM_CNT - ADDR_MAC_P1_RX_FRM_CNT;
@@ -1597,7 +1601,7 @@ adi_eth_Result_e MAC_GetStatCounters(adi_mac_Device_t *hDevice, uint32_t port, a
     /* Use burst read for Generic SPI. */
     adi_eth_MacStatCounters_t   locStat;
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     if (port)
     {
         baseAddr = ADDR_MAC_P2_RX_FRM_CNT;
@@ -1769,7 +1773,10 @@ adi_eth_Result_e MAC_GetLinkStatus(adi_mac_Device_t *hDevice, uint32_t port, adi
 {
     adi_eth_Result_e    result = ADI_ETH_SUCCESS;
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
+    (void) hDevice;
+    (void) port;
+    (void) linkStatus;
     /* For the ADIN2111 we need to read link status from the PHY registers */
     result = ADI_ETH_NOT_IMPLEMENTED;
 #else
@@ -1790,7 +1797,7 @@ end:
     return result;
 }
 
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
 adi_eth_Result_e MAC_SetChunkSize(adi_mac_Device_t *hDevice, adi_mac_OaCps_e cps)
 {
     adi_eth_Result_e    result = ADI_ETH_SUCCESS;
@@ -1859,7 +1866,7 @@ adi_eth_Result_e MAC_SetCutThroughMode(adi_mac_Device_t *hDevice, bool txcte, bo
     uint32_t            clearMask = (BITM_MAC_CONFIG0_RXCTE | BITM_MAC_CONFIG0_TXCTE);
     uint32_t            val;
 
-#if !defined(SPI_OA_EN)
+#if !defined(CONFIG_SPI_OA_EN)
     /* Cut-through on receive is not supported in hardware for Generic SPI */
     if (rxcte)
     {
@@ -1959,7 +1966,7 @@ adi_eth_Result_e MAC_SetForwardMode(adi_mac_Device_t *hDevice, adi_mac_ForwardMo
 
     val &= ~mask;
     setVal =    ((uint32_t)mode.P1_FWD_UNK_TO_HOST << BITP_MAC_CONFIG2_P1_FWD_UNK2HOST);
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     setVal |=   ((uint32_t)mode.P2_FWD_UNK_TO_HOST << BITP_MAC_CONFIG2_P2_FWD_UNK2HOST) |
                 ((uint32_t)mode.P1_FWD_UNK_TO_P2 << BITP_MAC_CONFIG2_P1_FWD_UNK2P2) |
                 ((uint32_t)mode.P2_FWD_UNK_TO_P1 << BITP_MAC_CONFIG2_P2_FWD_UNK2P1);
@@ -1989,7 +1996,7 @@ adi_eth_Result_e MAC_GetForwardMode(adi_mac_Device_t *hDevice, adi_mac_ForwardMo
     }
 
     pMode->P1_FWD_UNK_TO_HOST = (val & BITM_MAC_CONFIG2_P1_FWD_UNK2HOST);
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     pMode->P2_FWD_UNK_TO_HOST = (val & BITM_MAC_CONFIG2_P2_FWD_UNK2HOST);
     pMode->P1_FWD_UNK_TO_P2   = (val & BITM_MAC_CONFIG2_P1_FWD_UNK2P2);
     pMode->P2_FWD_UNK_TO_P1   = (val & BITM_MAC_CONFIG2_P2_FWD_UNK2P1);
@@ -2474,7 +2481,7 @@ adi_mac_DriverEntry_t macDriverEntry =
 #endif
     MAC_SetForwardMode,
     MAC_GetForwardMode,
-#if defined(SPI_OA_EN)
+#if defined(CONFIG_SPI_OA_EN)
     MAC_SetChunkSize,
     MAC_GetChunkSize,
 #endif

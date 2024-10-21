@@ -9,15 +9,12 @@
  *---------------------------------------------------------------------------
  */
 
-#ifndef HAL_PORT_SPECIFIC_H
-#define HAL_PORT_SPECIFIC_H
+#ifndef __ADI_HAL_PORT_SPECIFIC_H__
+#define __ADI_HAL_PORT_SPECIFIC_H__
 
 #include <stdlib.h>
 #include <stdint.h>
-
-// Must compile as a static lib without access to these files.
-// #include "stm32l4s5xx.h"
-// #include "boardsupport.h"
+#include "adi_bsp.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,4 +66,4 @@ extern "C" {
 }
 #endif
 
-#endif /* HAL_PORT_SPECIFIC_H */
+#endif /* __HAL_PORT_SPECIFIC_H__ */

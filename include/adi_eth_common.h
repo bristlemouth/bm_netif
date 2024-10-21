@@ -13,8 +13,8 @@
  *  @{
  */
 
-#ifndef ADI_ETH_COMMON_H
-#define ADI_ETH_COMMON_H
+#ifndef __ADI_ETH_COMMON_H__
+#define __ADI_ETH_COMMON_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,12 +70,11 @@ typedef void (* adi_eth_Callback_t) (
     void      *pCBParam,                /*!< Client-supplied callback parameter. */
     uint32_t   Event,                   /*!< Event ID specific to the Driver/Service. */
     void      *pArg                     /*!< Pointer to the event-specific argument. */
-
     );                   
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ADI_ETH_COMMON_H */
+#endif /* __ADI_ETH_COMMON_H__ */
 
 /** @}*/

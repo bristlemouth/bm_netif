@@ -12,8 +12,8 @@
      This file was auto-generated. Do not make local changes to this file.
    ================================================================================ */
 
-#ifndef ADIN2111_ADDR_RDEF_H
-#define ADIN2111_ADDR_RDEF_H
+#ifndef __ADIN2111_ADDR_RDEF_H__
+#define __ADIN2111_ADDR_RDEF_H__
 
 
 #if defined(_LANGUAGE_C) || (defined(__GNUC__) && !defined(__ASSEMBLER__))
@@ -1446,7 +1446,7 @@
 #define BITL_MAC_IF_SOP_CNTRL_MAC_IF_TX_SOP_LEN_CHK_EN        (1U)           /* Enable Tx SOP Preamble Length Check. */
 #define BITM_MAC_IF_SOP_CNTRL_MAC_IF_TX_SOP_LEN_CHK_EN        (0X0020U)      /* Enable Tx SOP Preamble Length Check. */
 
-#endif  /* end ifndef ADIN2111_ADDR_RDEF_H_ */
+#endif  /* end ifndef __ADIN2111_ADDR_RDEF_H__ */
 
-#endif /* ADIN2111_ADDR_RDEF_H */
+#endif /* __ADIN2111_ADDR_RDEF_H__ */
 

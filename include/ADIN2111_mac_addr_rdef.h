@@ -12,8 +12,8 @@
      This file was auto-generated. Do not make local changes to this file.
    ================================================================================ */
 
-#ifndef ADIN2111_MAC_ADDR_RDEF_H
-#define ADIN2111_MAC_ADDR_RDEF_H
+#ifndef __ADIN2111_MAC_ADDR_RDEF_H__
+#define __ADIN2111_MAC_ADDR_RDEF_H__
 
 
 #if defined(_LANGUAGE_C) || (defined(__GNUC__) && !defined(__ASSEMBLER__))
@@ -1610,5 +1610,5 @@
 #define BITM_MAC_P2_TTSCCL_P2_TTSCL_C                         (0XFFFFFFFFU)  /* P2 Transmit Timestamp C Bits 31-0. */
 
 
-#endif /* ADIN2111_MAC_ADDR_RDEF_H */
+#endif /* __ADIN2111_MAC_ADDR_RDEF_H__ */
 

@@ -10,7 +10,6 @@
  */
 
 #include "adi_phy.h"
-#include "hal.h"
 
 static adi_eth_Result_e         PHY_Init                    (adi_phy_Device_t **hPhyDevice, adi_phy_DriverConfig_t *cfg, void *adinDevice, HAL_ReadFn_t readFn, HAL_WriteFn_t writeFn);
 static adi_eth_Result_e         PHY_UnInit                  (adi_phy_Device_t *hDevice);
@@ -729,7 +728,7 @@ static adi_eth_Result_e setSoftwarePowerdown(adi_phy_Device_t *hDevice, bool ena
     adi_eth_Result_e    result = ADI_ETH_SUCCESS;
     uint16_t            val16;
     uint16_t            bitval;
-    bool                swpd;
+    bool                swpd = false;
     int32_t             iter = ADI_PHY_SOFT_PD_ITER;
 
     if (hDevice->irqPending)
@@ -1239,8 +1238,8 @@ end:
 adi_eth_Result_e PHY_SetTestMode(adi_phy_Device_t *hDevice, adi_phy_TestMode_e testMode)
 {
     adi_eth_Result_e    result = ADI_ETH_SUCCESS;
-    uint16_t            b10lPmaCntrl;
-    uint16_t            testModeCntrl;
+    uint16_t            b10lPmaCntrl = 0;
+    uint16_t            testModeCntrl = 0;
 
     if ((testMode != ADI_PHY_TEST_MODE_NONE) && (testMode != ADI_PHY_TEST_MODE_1) &&
         (testMode != ADI_PHY_TEST_MODE_2) && (testMode != ADI_PHY_TEST_MODE_3) &&
@@ -1320,7 +1319,8 @@ adi_eth_Result_e PHY_SetTestMode(adi_phy_Device_t *hDevice, adi_phy_TestMode_e t
                 case ADI_PHY_TEST_MODE_3:
                     testModeCntrl = (ENUM_B10L_TEST_MODE_CNTRL_B10L_TX_TEST_MODE_IEEE_TX_TM_IDLE << BITP_B10L_TEST_MODE_CNTRL_B10L_TX_TEST_MODE);
                     break;
-
+                default:
+                    break;
             }
 
             /* No need for read-modify-write, register has only one bitfield */
@@ -1962,4 +1962,3 @@ adi_phy_DriverEntry_t phyDriverEntry =
     PHY_FrameChkReadRxErrCnt,
     PHY_FrameChkReadErrorCnt,
 };
-

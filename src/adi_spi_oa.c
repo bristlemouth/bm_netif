@@ -30,7 +30,6 @@ static adi_eth_Result_e     oaSpiIntHandle          (adi_mac_Device_t *hDevice);
 static adi_eth_Result_e     oaPhyRegReadStart       (adi_mac_Device_t *hDevice, ADI_MAC_MDIOACC_0__t *mdioCmd, uint32_t prtad, uint32_t regAddr);
 static adi_eth_Result_e     oaPhyRegReadStep        (adi_mac_Device_t *hDevice, ADI_MAC_MDIOACC_0__t *mdioCmd);
 
-
 /*!
  * @brief           MAC-PHY interrupt service routine.
  *
@@ -68,8 +67,10 @@ void oaIrqHandler(adi_mac_Device_t *hDevice)
  */
 void spiCallback(void *pCBParam, uint32_t Event, void *pArg)
 {
-    adi_mac_Device_t        *hDevice = (adi_mac_Device_t *)pCBParam;
+    (void) Event;
+    (void) pArg;
 
+    adi_mac_Device_t        *hDevice = (adi_mac_Device_t *)pCBParam;
     oaStateMachine(hDevice);
 }
 
@@ -286,7 +287,7 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
                                                 tail = hDevice->pRxQueue->tail;
                                                 queueRemove(hDevice->pRxQueue);
 
-    #if defined(ADIN2111)
+    #if defined(CONFIG_ETH_ADIN2111)
                                                 /* Update the dynamic forwarding table */
                                                 /* If there was an FCS error, it will be passed on via the callback argument, but it will be ignored by the callback. */
                                                 if (hDevice->cbFunc[ADI_MAC_EVT_DYN_TBL_UPDATE] != NULL)
@@ -343,7 +344,7 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
 			                        else
 			                        {
                         				hDevice->pRxQueue->pEntries[hDevice->pRxQueue->tail].pBufDesc->prio = prio;
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
                         				hDevice->pRxQueue->pEntries[hDevice->pRxQueue->tail].pBufDesc->port = vs & 0x1;
 #endif
                         				pRxBuf = hDevice->pRxQueue->pEntries[hDevice->pRxQueue->tail].pBufDesc->pBuf;
@@ -426,7 +427,7 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
                                             tail = hDevice->pRxQueue->tail;
                                             queueRemove(hDevice->pRxQueue);
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
                                             /* Update the dynamic forwarding table */
                                             /* If there was an FCS error, it will be passed on via the callback argument, but it will be ignored by the callback. */
                                             if (hDevice->cbFunc[ADI_MAC_EVT_DYN_TBL_UPDATE] != NULL)
@@ -586,12 +587,12 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
             hDevice->statusRegisters.status1Masked = hDevice->statusRegisters.status1 & ~hDevice->irqMask1;
             hDevice->statusRegisters.p1StatusMasked = ADI_MAC_PHY_STATUS_INIT_VAL;
             hDevice->statusRegisters.p1Status = ADI_MAC_PHY_STATUS_INIT_VAL;
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
             hDevice->statusRegisters.p2StatusMasked = ADI_MAC_PHY_STATUS_INIT_VAL;
             hDevice->statusRegisters.p2Status = ADI_MAC_PHY_STATUS_INIT_VAL;
 #endif
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
             if ((hDevice->statusRegisters.status0Masked & BITM_MAC_STATUS0_PHYINT) || (hDevice->statusRegisters.status1Masked & BITM_MAC_STATUS1_P2_PHYINT))
 #else
             if (hDevice->statusRegisters.status0Masked & BITM_MAC_STATUS0_PHYINT)
@@ -678,7 +679,7 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
                                     hDevice->statusRegisters.p1StatusMasked &= 0x0000FFFF;
                                     hDevice->statusRegisters.p1StatusMasked |= (hDevice->statusRegisters.p1Status & hDevice->phyIrqMask & 0xFFFF0000);
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
                                     if (hDevice->statusRegisters.status1Masked & BITM_MAC_STATUS1_P2_PHYINT)
                                     {
                                         /* At this point we haven't read anything so if the PHYINT is set, we need to go ahead and read from PHY registers */
@@ -693,7 +694,7 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
 #endif
                                 }
                             }
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
                             else
                             {
                                 if ((hDevice->statusRegisters.status1Masked & BITM_MAC_STATUS1_P2_PHYINT) &&
@@ -748,7 +749,6 @@ adi_eth_Result_e oaStateMachine(adi_mac_Device_t *hDevice)
             ADI_HAL_ENABLE_IRQ(hDevice->adinDevice);
             break;
     }
-
     return result;
 }
 
@@ -834,7 +834,7 @@ adi_eth_Result_e oaSpiIntHandle(adi_mac_Device_t *hDevice)
     status1Masked.VALUE32 = hDevice->statusRegisters.status1Masked;
 
     /* Link status and link status change behave differently in ADIN2111 */
-#if !defined(ADIN2111)
+#if !defined(CONFIG_ETH_ADIN2111)
     if (status1Masked.LINK_CHANGE)
     {
         if (hDevice->cbFunc[ADI_MAC_EVT_LINK_CHANGE] != NULL)
@@ -846,7 +846,7 @@ adi_eth_Result_e oaSpiIntHandle(adi_mac_Device_t *hDevice)
 #endif
 
     /* Captured timestamp availability flags are different in ADIN2111 */
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
     if ((status0Masked.TTSCAA | status0Masked.TTSCAB | status0Masked.TTSCAC) | (status1Masked.P2_TTSCAA | status1Masked.P2_TTSCAB | status1Masked.P2_TTSCAC))
 #else
     if (status0Masked.TTSCAA | status0Masked.TTSCAB | status0Masked.TTSCAC)
@@ -854,7 +854,7 @@ adi_eth_Result_e oaSpiIntHandle(adi_mac_Device_t *hDevice)
     {
         if (hDevice->cbFunc[ADI_MAC_EVT_TIMESTAMP_RDY] != NULL)
         {
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
             timestampReady.p1TimestampReadyA = (bool)status0Masked.TTSCAA;
             timestampReady.p1TimestampReadyB = (bool)status0Masked.TTSCAB;
             timestampReady.p1TimestampReadyC = (bool)status0Masked.TTSCAC;
@@ -878,7 +878,7 @@ adi_eth_Result_e oaSpiIntHandle(adi_mac_Device_t *hDevice)
             hDevice->cbFunc[ADI_MAC_EVT_STATUS](hDevice->cbParam[ADI_MAC_EVT_STATUS], ADI_MAC_EVT_STATUS, (void *)&hDevice->statusRegisters);
         }
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
         if ((status0Masked.PHYINT && (hDevice->statusRegisters.p1StatusMasked != ADI_MAC_PHY_STATUS_INIT_VAL) && (hDevice->statusRegisters.p1StatusMasked & (BITM_PHY_SUBSYS_IRQ_MASK_LINK_STAT_CHNG_IRQ_EN << 16))) ||
             (status1Masked.P2_PHYINT && (hDevice->statusRegisters.p2StatusMasked != ADI_MAC_PHY_STATUS_INIT_VAL) && (hDevice->statusRegisters.p2StatusMasked & (BITM_PHY_SUBSYS_IRQ_MASK_LINK_STAT_CHNG_IRQ_EN << 16))))
         {
@@ -1094,7 +1094,7 @@ static adi_eth_Result_e oaCreateNextChunk(adi_mac_Device_t *hDevice, uint8_t *pB
             oaTxHeader.SWO = 0;
             oaTxHeader.TMSC = (uint32_t)(pFrame->pBufDesc->egressCapt);
 
-#if defined(ADIN2111)
+#if defined(CONFIG_ETH_ADIN2111)
             oaTxHeader.VS = pFrame->pBufDesc->port & 0x1;
 #endif
             firstChunk = false;
@@ -1176,7 +1176,7 @@ static adi_eth_Result_e oaCtrlSetup(uint8_t *pBuf, uint32_t wnr, uint32_t regAdd
     byteLen = 2 * ADI_SPI_HEADER_SIZE;
     /* Convert words to bytes */
     byteLen += ADI_MAC_SPI_ACCESS_SIZE * (*pLen);
-#if defined(SPI_PROT_EN)
+#if defined(CONFIG_SPI_PROT_EN)
     /* Protection enabled */
     byteLen += ADI_MAC_SPI_ACCESS_SIZE * (*pLen);
 #endif
@@ -1257,7 +1257,7 @@ static adi_eth_Result_e oaCtrlCmdReadData(uint32_t *dst, uint8_t *src, uint32_t 
 {
     adi_eth_Result_e     result = ADI_ETH_SUCCESS;
 
-#if defined(SPI_PROT_EN)
+#if defined(CONFIG_SPI_PROT_EN)
     uint32_t            val32[2];
 
     /* Protection enabled */
@@ -1308,7 +1308,7 @@ static adi_eth_Result_e oaCtrlCmdWriteData(uint8_t *dst, uint32_t *src, uint32_t
 {
     adi_eth_Result_e     result = ADI_ETH_SUCCESS;
 
-#if defined(SPI_PROT_EN)
+#if defined(CONFIG_SPI_PROT_EN)
       /* Protection enabled */
     for (uint32_t i = 0; i < cnt; i++)
     {
@@ -1342,8 +1342,9 @@ static adi_eth_Result_e oaCtrlCmdWriteData(uint8_t *dst, uint32_t *src, uint32_t
  */
 adi_eth_Result_e MAC_SendFrame(adi_mac_Device_t *hDevice, adi_mac_FrameStruct_t *pFrame)
 {
-    adi_eth_Result_e          result = ADI_ETH_SUCCESS;
+    (void) pFrame;
 
+    adi_eth_Result_e          result = ADI_ETH_SUCCESS;
     hDevice->state = ADI_MAC_STATE_DATA_START;
     result = oaStateMachine(hDevice);
 
