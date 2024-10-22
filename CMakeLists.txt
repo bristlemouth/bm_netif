@@ -24,14 +24,11 @@ include_directories(
 )
 
 set(SOURCES
-    src/adi_bsp.c
-    src/adi_hal.c
     src/adi_mac.c
     src/adi_phy.c
     src/adi_spi_oa.c
     src/adin2111.c
     src/bm_adin2111.c
-    src/eth_adin2111.c
 )
 
 add_library(bmnetif ${SOURCES})

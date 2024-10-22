@@ -14,7 +14,6 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "adi_bsp.h"
 
 #ifdef __cplusplus
 extern "C" {
