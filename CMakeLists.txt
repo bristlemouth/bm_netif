@@ -21,6 +21,7 @@ FetchContent_MakeAvailable(bm_common)
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/include/stm32u5
+    ${bm_common_SOURCE_DIR}/include
 )
 
 set(SOURCES
