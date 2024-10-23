@@ -25,6 +25,7 @@ include_directories(
 )
 
 set(SOURCES
+    src/adi_fcs.c
     src/adi_mac.c
     src/adi_phy.c
     src/adi_spi_oa.c

@@ -18,6 +18,15 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
+FetchContent_Declare(
+  fff
+  GIT_REPOSITORY https://github.com/meekrosoft/fff.git
+  GIT_TAG        5111c61
+)
+FetchContent_MakeAvailable(fff)
+
+include_directories(${fff_SOURCE_DIR})
+
 function(create_gtest src_name)
     set(test_name ${src_name}_test)
     set(test_src src/${test_name}.cpp)

@@ -1,9 +1,21 @@
 #include "bm_adin2111.h"
+#include "fff.h"
 #include "gtest/gtest.h"
 
-static void link_changed_on_port(int port_index) {
-  (void)port_index;
-}
+DEFINE_FFF_GLOBALS;
+
+FAKE_VALUE_FUNC(uint32_t, HAL_DisableIrq);
+FAKE_VALUE_FUNC(uint32_t, HAL_EnableIrq);
+FAKE_VALUE_FUNC(uint32_t, HAL_GetEnableIrq);
+FAKE_VALUE_FUNC(uint32_t, HAL_RegisterCallback, HAL_Callback_t const *, void *);
+FAKE_VALUE_FUNC(uint32_t, HAL_SpiReadWrite, uint8_t *, uint8_t *, uint32_t, bool);
+FAKE_VALUE_FUNC(uint32_t, HAL_SpiRegisterCallback, HAL_Callback_t const *, void *);
+FAKE_VALUE_FUNC(uint32_t, HAL_UnInit_Hook);
+FAKE_VALUE_FUNC(long unsigned int, __REV, long unsigned int);
+FAKE_VOID_FUNC(__disable_irq);
+FAKE_VOID_FUNC(__enable_irq);
+
+FAKE_VOID_FUNC(link_changed_on_port, int);
 
 TEST(Adin2111, send) {
   Adin2111 adin;
