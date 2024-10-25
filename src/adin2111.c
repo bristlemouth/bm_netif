@@ -97,7 +97,11 @@ adi_eth_Result_e adin2111_Init(adin2111_DeviceHandle_t hDevice, adin2111_DriverC
 
     /* Initialize the MAC configuration structure. */
     macDrvConfig.pDevMem = (void *)pCfg->pDevMem;
+    #ifdef ENABLE_TESTING
+    macDrvConfig.devMemSize = ADI_MAC_DEVICE_SIZE + 80;
+    #else
     macDrvConfig.devMemSize = ADI_MAC_DEVICE_SIZE;
+    #endif
     macDrvConfig.fcsCheckEn = pCfg->fcsCheckEn;
 
     /* Initialize the PHY configuration structure. */

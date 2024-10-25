@@ -14,7 +14,11 @@
 // we can allocate this dynamically.
 static Adin2111 *ADIN2111 = NULL;
 static adin2111_DeviceStruct_t DEVICE_STRUCT;
+#ifdef ENABLE_TESTING
 static uint8_t DEVICE_MEMORY[ADIN2111_DEVICE_SIZE + 80];
+#else
+static uint8_t DEVICE_MEMORY[ADIN2111_DEVICE_SIZE];
+#endif
 static adin2111_DriverConfig_t DRIVER_CONFIG = {
     .pDevMem = (void *)DEVICE_MEMORY,
     .devMemSize = sizeof(DEVICE_MEMORY),
@@ -125,7 +129,6 @@ BmErr adin2111_init(Adin2111 *self) {
   ADIN2111 = self;
 
   adi_eth_Result_e result = adin2111_Init(self->device_handle, &DRIVER_CONFIG);
-  return result;
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
     goto end;
