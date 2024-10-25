@@ -1,8 +1,7 @@
-#include "receiver.h"
+#include "util.h"
 
 typedef struct {
-  void (*const init)(void *self, Receiver receiver);
-  int (*const send)(void *self, unsigned char *data, unsigned int length);
+  BmErr (*const send)(void *self, uint8_t *data, size_t length);
 } NetworkInterfaceTrait;
 
 typedef struct {

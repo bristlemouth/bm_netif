@@ -2,21 +2,10 @@
 #include "network_interface.h"
 #include "util.h"
 
-// whatever, placeholder
-typedef int Pin;
-
 typedef struct {
-  Pin pico;
-  Pin poci;
-  Pin cs;
-  Pin sck;
-} Spi;
-
-typedef struct {
-  Receiver receiver;
-  Spi spi;
   void *device_handle;
-  void (*link_change_cb)(int port_index);
+  void (*link_change_callback)(int port_index);
+  size_t (*receive_callback)(uint8_t *data, size_t length, int port_index);
 } Adin2111;
 
 #ifdef __cplusplus

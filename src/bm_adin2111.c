@@ -1,14 +1,20 @@
 #include "bm_adin2111.h"
+#include "aligned_malloc.h"
+#include "bm_os.h"
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <string.h>
+
+// Extra 4 bytes for FCS and 2 bytes for the frame header
+#define MAX_FRAME_BUF_SIZE (MAX_FRAME_SIZE + 4 + 2)
+#define DMA_ALIGN_SIZE (4)
 
 // For now, there's only ever one ADIN2111.
 // When supporting multiple in the future,
 // we can allocate this dynamically.
 static Adin2111 *ADIN2111 = NULL;
 static adin2111_DeviceStruct_t DEVICE_STRUCT;
-static uint8_t DEVICE_MEMORY[ADIN2111_DEVICE_SIZE];
+static uint8_t DEVICE_MEMORY[ADIN2111_DEVICE_SIZE + 80];
 static adin2111_DriverConfig_t DRIVER_CONFIG = {
     .pDevMem = (void *)DEVICE_MEMORY,
     .devMemSize = sizeof(DEVICE_MEMORY),
@@ -16,92 +22,64 @@ static adin2111_DriverConfig_t DRIVER_CONFIG = {
     .tsTimerPin = ADIN2111_TS_TIMER_MUX_NA,
     .tsCaptPin = ADIN2111_TS_CAPT_MUX_NA,
 };
+static adi_eth_BufDesc_t RX_BUFFERS[RX_QUEUE_NUM_ENTRIES];
 
-#define BUFSIZE 4096
-static unsigned char BUFFER[BUFSIZE];
-static unsigned int READABLE_BYTES = 0;
-static atomic_bool LOCKED = false;
-
-/*!
-  \brief Receive data from the network
-
-  Concrete implementation of the Receiver trait
-  Handle as quickly as possible.
-  Make a copy of the received data, and set a notification flag, then return.
-  Clients can poll the flag to know when new data is available for processing.
-  If another thread holds the buffer mutex, return 0 immediately.
-
-  \param self - the receiver
-  \param data - the data to receive
-  \param length - the length of data that is available
-  \return the number of bytes received
-*/
-static unsigned int adin2111_receive(const Adin2111 *const self,
-                                     const unsigned char *const data,
-                                     unsigned int length) {
-  (void)self;
-  unsigned int bytes_received = 0;
-  bool expected = false;
-  if (atomic_compare_exchange_strong(&LOCKED, &expected, true)) {
-    const unsigned int writable_bytes = BUFSIZE - READABLE_BYTES;
-    const unsigned int len_to_copy =
-        length < writable_bytes ? length : writable_bytes;
-    memcpy(BUFFER, data, len_to_copy);
-    READABLE_BYTES += len_to_copy;
-    bytes_received = len_to_copy;
-    atomic_store(&LOCKED, false);
+static void free_tx_buffer(adi_eth_BufDesc_t *buffer_description) {
+  if (buffer_description) {
+    if (buffer_description->pBuf) {
+      aligned_free(buffer_description->pBuf);
+    }
+    bm_free(buffer_description);
   }
-  return bytes_received;
 }
 
-// Wraper to convert self from void* to Adin2111*
-static inline unsigned int adin2111_receive_(void *self, unsigned char *data,
-                                             unsigned int length) {
-  return adin2111_receive(self, data, length);
+static void send_callback(void *device_param, uint32_t event,
+                          void *buffer_description_param) {
+  (void)device_param;
+  (void)event;
+
+  adi_eth_BufDesc_t *buffer_description =
+      (adi_eth_BufDesc_t *)buffer_description_param;
+  free_tx_buffer(buffer_description);
 }
 
-// Build a generic Receiver out of a concrete Adin2111
-Receiver prep_adin2111_receiver(Adin2111 *adin) {
-  // Create the vtable once and attach a pointer to it every time
-  static ReceiverTrait const trait = {.receive = adin2111_receive_};
-  return (Receiver){.trait = &trait, .self = adin};
+static BmErr adin2111_netif_send(Adin2111 *self, uint8_t *data, size_t length) {
+  BmErr err = BmOK;
+  adi_eth_BufDesc_t *buffer_description = bm_malloc(sizeof(adi_eth_BufDesc_t));
+  if (!buffer_description) {
+    err = BmENOMEM;
+    goto end;
+  }
+  memset(buffer_description, 0, sizeof(adi_eth_BufDesc_t));
+  buffer_description->pBuf = aligned_malloc(DMA_ALIGN_SIZE, length);
+  if (!buffer_description->pBuf) {
+    bm_free(buffer_description);
+    err = BmENOMEM;
+    goto end;
+  }
+  memcpy(buffer_description->pBuf, data, length);
+  buffer_description->bufSize = length;
+  buffer_description->cbFunc = send_callback;
+  adin2111_SubmitTxBuffer(self->device_handle, ADIN2111_TX_PORT_FLOOD,
+                          buffer_description);
+end:
+  return err;
 }
 
-static void adin2111_netif_init(Adin2111 *self, Receiver receiver) {
-  self->receiver = receiver;
-}
-
-static int adin2111_netif_send(Adin2111 *self, unsigned char *data,
-                               unsigned int length) {
-  adi_eth_BufDesc_t buffer_description;
-  buffer_description.bufSize = length;
-  buffer_description.pBuf = data;
-  // TODO: This call segfaults during testing.
-  // Continuing to flesh this out so tests pass is the next task.
-  // adin2111_SubmitTxBuffer(self->device_handle, ADIN2111_TX_PORT_FLOOD,
-  //                         &buffer_description);
-  return 0;
-}
-
-static inline void adin2111_netif_init_(void *self, Receiver receiver) {
-  adin2111_netif_init(self, receiver);
-}
-
-static inline int adin2111_netif_send_(void *self, unsigned char *data,
-                                       unsigned int length) {
+static inline BmErr adin2111_netif_send_(void *self, uint8_t *data,
+                                         size_t length) {
   return adin2111_netif_send(self, data, length);
 }
 
 // Build a generic NetworkInterface out of a concrete Adin2111
 NetworkInterface prep_adin2111_netif(Adin2111 *adin) {
   // Create the vtable once and attach a pointer to it every time
-  static NetworkInterfaceTrait const trait = {.init = adin2111_netif_init_,
-                                              .send = adin2111_netif_send_};
+  static NetworkInterfaceTrait const trait = {.send = adin2111_netif_send_};
   return (NetworkInterface){.trait = &trait, .self = adin};
 }
 
-static void link_change_cb(void *device_param, uint32_t event,
-                           void *status_registers_param) {
+static void link_change_callback(void *device_param, uint32_t event,
+                                 void *status_registers_param) {
   (void)device_param;
   (void)event;
 
@@ -115,35 +93,86 @@ static void link_change_cb(void *device_param, uint32_t event,
     port_index = ADIN2111_PORT_2;
   }
 
-  if (ADIN2111 && ADIN2111->link_change_cb && port_index != -1) {
-    ADIN2111->link_change_cb(port_index);
+  if (ADIN2111 && ADIN2111->link_change_callback && port_index != -1) {
+    ADIN2111->link_change_callback(port_index);
+  }
+}
+
+static void receive_callback(void *device_param, uint32_t event,
+                             void *buffer_description_param) {
+  (void)device_param;
+  (void)event;
+
+  adi_eth_BufDesc_t *buffer_description =
+      (adi_eth_BufDesc_t *)buffer_description_param;
+  int port_index = 1 << buffer_description->port;
+
+  if (ADIN2111 && ADIN2111->receive_callback) {
+    ADIN2111->receive_callback(buffer_description->pBuf,
+                               buffer_description->bufSize, port_index);
   }
 }
 
 BmErr adin2111_init(Adin2111 *self) {
+  BmErr err = BmOK;
+
   if (ADIN2111) {
-    return BmEALREADY;
+    err = BmEALREADY;
+    goto end;
   }
 
   self->device_handle = &DEVICE_STRUCT;
   ADIN2111 = self;
-  BmErr err = BmOK;
 
   adi_eth_Result_e result = adin2111_Init(self->device_handle, &DRIVER_CONFIG);
+  return result;
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
     goto end;
   }
 
-  result = adin2111_RegisterCallback(self->device_handle, link_change_cb,
+  result = adin2111_RegisterCallback(self->device_handle, link_change_callback,
                                      ADI_MAC_EVT_LINK_CHANGE);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
     goto end;
   }
 
-  // TODO: aligned alloc 8 of these buffers and submit each one
-  // adin2111_SubmitRxBuffer(device_handle, buffer_description)
+  for (int i = 0; i < RX_QUEUE_NUM_ENTRIES; i++) {
+    adi_eth_BufDesc_t *buffer_description = &RX_BUFFERS[i];
+    memset(buffer_description, 0, sizeof(adi_eth_BufDesc_t));
+    buffer_description->pBuf =
+        aligned_malloc(DMA_ALIGN_SIZE, MAX_FRAME_BUF_SIZE);
+    if (!buffer_description->pBuf) {
+      err = BmENOMEM;
+      goto end;
+    }
+    memset(buffer_description->pBuf, 0, MAX_FRAME_BUF_SIZE);
+    buffer_description->bufSize = MAX_FRAME_BUF_SIZE;
+    buffer_description->cbFunc = receive_callback;
+    result = adin2111_SubmitRxBuffer(self->device_handle, buffer_description);
+    if (result != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+      goto end;
+    }
+  }
+
+  result = adin2111_SyncConfig(self->device_handle);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_EnablePort(self->device_handle, ADIN2111_PORT_1);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+  result = adin2111_EnablePort(self->device_handle, ADIN2111_PORT_2);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
 
 end:
   return err;

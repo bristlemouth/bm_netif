@@ -14,7 +14,7 @@ include(FetchContent)
 FetchContent_Declare(
   bm_common
   GIT_REPOSITORY https://github.com/bristlemouth/bm_common.git
-  GIT_TAG        main
+  GIT_TAG        feat/aligned-malloc
 )
 FetchContent_MakeAvailable(bm_common)
 

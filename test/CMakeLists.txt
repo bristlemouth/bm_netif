@@ -27,13 +27,13 @@ FetchContent_MakeAvailable(fff)
 
 include_directories(${fff_SOURCE_DIR})
 
-function(create_gtest src_name)
+function(create_gtest src_name more_sources)
     set(test_name ${src_name}_test)
-    set(test_src src/${test_name}.cpp)
-    add_executable(${test_name} ${test_src})
+    add_executable(${test_name} src/${test_name}.cpp ${more_sources})
     target_link_libraries(${test_name} GTest::gtest_main)
     target_link_libraries(${test_name} bmnetif)
     gtest_discover_tests(${test_name})
 endfunction()
 
-create_gtest("bm_adin2111")
+set(bm_adin2111_sources ${bm_common_SOURCE_DIR}/src/aligned_malloc.c)
+create_gtest(bm_adin2111 "${bm_adin2111_sources}")
