@@ -40,9 +40,9 @@ target_include_directories(bmnetif PUBLIC
 )
 
 if(ENABLE_TESTING)
-    set(CMAKE_CXX_FLAGS "-g -Wall -fprofile-arcs -ftest-coverage")
-    set(CMAKE_C_FLAGS "-g -Wall -W -fprofile-arcs -ftest-coverage")
-    set(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
+    set(CMAKE_CXX_FLAGS "-g -Wall --coverage")
+    set(CMAKE_C_FLAGS "-g -Wall -W --coverage")
+    set(CMAKE_EXE_LINKER_FLAGS "--coverage")
     add_compile_definitions(ENABLE_TESTING)
     enable_testing()
     add_subdirectory(test)
