@@ -82,38 +82,46 @@ NetworkInterface prep_adin2111_netif(Adin2111 *adin) {
   return (NetworkInterface){.trait = &trait, .self = adin};
 }
 
-static void link_change_callback(void *device_param, uint32_t event,
-                                 void *status_registers_param) {
-  (void)device_param;
+static void link_change_callback_(void *device_param, uint32_t event,
+                                  void *status_registers_param) {
   (void)event;
 
-  adi_mac_StatusRegisters_t *status_registers =
-      (adi_mac_StatusRegisters_t *)status_registers_param;
+  if (ADIN2111 && ADIN2111->link_change_callback) {
+    const adi_mac_StatusRegisters_t *status_registers =
+        (adi_mac_StatusRegisters_t *)status_registers_param;
 
-  int port_index = -1;
-  if (status_registers->p1StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
-    port_index = ADIN2111_PORT_1;
-  } else if (status_registers->p2StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
-    port_index = ADIN2111_PORT_2;
-  }
+    int port_index = -1;
+    if (status_registers->p1StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
+      port_index = ADIN2111_PORT_1;
+    } else if (status_registers->p2StatusMasked ==
+               ADI_PHY_EVT_LINK_STAT_CHANGE) {
+      port_index = ADIN2111_PORT_2;
+    }
 
-  if (ADIN2111 && ADIN2111->link_change_callback && port_index != -1) {
-    ADIN2111->link_change_callback(port_index);
+    if (port_index >= 0) {
+      adin2111_DeviceHandle_t device_handle =
+          (adin2111_DeviceHandle_t)device_param;
+      adi_eth_LinkStatus_e status;
+      adi_eth_Result_e result =
+          adin2111_GetLinkStatus(device_handle, port_index, &status);
+      if (result == ADI_ETH_SUCCESS) {
+        ADIN2111->link_change_callback(port_index, status);
+      }
+    }
   }
 }
 
-static void receive_callback(void *device_param, uint32_t event,
-                             void *buffer_description_param) {
+static void receive_callback_(void *device_param, uint32_t event,
+                              void *buffer_description_param) {
   (void)device_param;
   (void)event;
 
-  adi_eth_BufDesc_t *buffer_description =
-      (adi_eth_BufDesc_t *)buffer_description_param;
-  int port_index = 1 << buffer_description->port;
-
   if (ADIN2111 && ADIN2111->receive_callback) {
-    ADIN2111->receive_callback(buffer_description->pBuf,
-                               buffer_description->bufSize, port_index);
+    adi_eth_BufDesc_t *buffer_description =
+        (adi_eth_BufDesc_t *)buffer_description_param;
+    uint8_t port_index = 1 << buffer_description->port;
+    ADIN2111->receive_callback(port_index, buffer_description->pBuf,
+                               buffer_description->bufSize);
   }
 }
 
@@ -134,7 +142,7 @@ BmErr adin2111_init(Adin2111 *self) {
     goto end;
   }
 
-  result = adin2111_RegisterCallback(self->device_handle, link_change_callback,
+  result = adin2111_RegisterCallback(self->device_handle, link_change_callback_,
                                      ADI_MAC_EVT_LINK_CHANGE);
   if (result != ADI_ETH_SUCCESS) {
     err = BmENODEV;
@@ -152,7 +160,7 @@ BmErr adin2111_init(Adin2111 *self) {
     }
     memset(buffer_description->pBuf, 0, MAX_FRAME_BUF_SIZE);
     buffer_description->bufSize = MAX_FRAME_BUF_SIZE;
-    buffer_description->cbFunc = receive_callback;
+    buffer_description->cbFunc = receive_callback_;
     result = adin2111_SubmitRxBuffer(self->device_handle, buffer_description);
     if (result != ADI_ETH_SUCCESS) {
       err = BmENODEV;

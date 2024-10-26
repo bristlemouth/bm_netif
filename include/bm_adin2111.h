@@ -4,8 +4,8 @@
 
 typedef struct {
   void *device_handle;
-  void (*link_change_callback)(int port_index);
-  size_t (*receive_callback)(uint8_t *data, size_t length, int port_index);
+  void (*link_change_callback)(uint8_t port_index, bool is_up);
+  size_t (*receive_callback)(uint8_t port_index, uint8_t *data, size_t length);
 } Adin2111;
 
 #ifdef __cplusplus
