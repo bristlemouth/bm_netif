@@ -1,7 +1,6 @@
 #include "bm_adin2111.h"
 #include "aligned_malloc.h"
 #include "bm_os.h"
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -30,6 +29,132 @@ static adi_eth_BufDesc_t RX_BUFFERS[RX_QUEUE_NUM_ENTRIES];
 
 /**************** Private Helper Functions ****************/
 
+// Called by the driver when the link status changes
+// If the user has registered a callback, call it
+static void link_change_callback_(void *device_handle, uint32_t event,
+                                  void *status_registers_param) {
+  (void)event;
+
+  if (ADIN2111 && ADIN2111->callbacks && ADIN2111->callbacks->link_change) {
+    const adi_mac_StatusRegisters_t *status_registers =
+        (adi_mac_StatusRegisters_t *)status_registers_param;
+
+    int port_index = -1;
+    if (status_registers->p1StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
+      port_index = ADIN2111_PORT_1;
+    } else if (status_registers->p2StatusMasked ==
+               ADI_PHY_EVT_LINK_STAT_CHANGE) {
+      port_index = ADIN2111_PORT_2;
+    }
+
+    if (port_index >= 0) {
+      adi_eth_LinkStatus_e status;
+      adi_eth_Result_e result =
+          adin2111_GetLinkStatus(device_handle, port_index, &status);
+      if (result == ADI_ETH_SUCCESS) {
+        ADIN2111->callbacks->link_change(port_index, status);
+      }
+    }
+  }
+}
+
+// Start up and enable the ADIN2111 hardware
+static BmErr adin2111_netif_enable(Adin2111 *self) {
+  BmErr err = BmOK;
+
+  if (!self) {
+    err = BmEINVAL;
+    goto end;
+  }
+
+  if (self->callbacks && self->callbacks->power) {
+    self->callbacks->power(true);
+  }
+
+  adi_eth_Result_e result = adin2111_Init(self->device_handle, &DRIVER_CONFIG);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  result = adin2111_RegisterCallback(self->device_handle, link_change_callback_,
+                                     ADI_MAC_EVT_LINK_CHANGE);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  for (int i = 0; i < RX_QUEUE_NUM_ENTRIES; i++) {
+    // Buffers must already have been allocated and initialized in adin2111_init
+    adi_eth_BufDesc_t *buffer_description = &RX_BUFFERS[i];
+    if (!buffer_description || !buffer_description->pBuf) {
+      err = BmENODEV;
+      goto end;
+    }
+    result = adin2111_SubmitRxBuffer(self->device_handle, buffer_description);
+    if (result != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+      goto end;
+    }
+  }
+
+  result = adin2111_SyncConfig(self->device_handle);
+  if (result != ADI_ETH_SUCCESS) {
+    err = BmENODEV;
+    goto end;
+  }
+
+  for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
+    result = adin2111_EnablePort(self->device_handle, i);
+    if (result != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+      break;
+    }
+  }
+
+end:
+  if (err != BmOK && self && self->callbacks && self->callbacks->power) {
+    self->callbacks->power(false);
+  }
+
+  return err;
+}
+
+// Trait wrapper function to convert self from void* to Adin2111*
+inline static BmErr adin2111_netif_enable_(void *self) {
+  return adin2111_netif_enable(self);
+}
+
+// Shut down and disable the ADIN2111 hardware
+static BmErr adin2111_netif_disable(Adin2111 *self) {
+  BmErr err = BmOK;
+
+  if (!self) {
+    err = BmEINVAL;
+    goto end;
+  }
+
+  for (int i = 0; i < ADIN2111_PORT_NUM; i++) {
+    adi_eth_Result_e result = adin2111_DisablePort(self->device_handle, i);
+    if (result != ADI_ETH_SUCCESS) {
+      err = BmENODEV;
+      break;
+    }
+  }
+
+  if (self && self->callbacks && self->callbacks->power) {
+    self->callbacks->power(false);
+  }
+
+end:
+  return err;
+}
+
+// Trait wrapper function to convert self from void* to Adin2111*
+inline static BmErr adin2111_netif_disable_(void *self) {
+  return adin2111_netif_disable(self);
+}
+
 // After a TX buffer is sent, it gets freed here
 static void free_tx_buffer(adi_eth_BufDesc_t *buffer_description) {
   if (buffer_description) {
@@ -40,14 +165,12 @@ static void free_tx_buffer(adi_eth_BufDesc_t *buffer_description) {
   }
 }
 
-// This is the callback that gets called after a TX buffer is sent
-static void send_callback(void *device_param, uint32_t event,
-                          void *buffer_description_param) {
+// This is the callback that the driver calls after a TX buffer is sent
+static void tx_complete(void *device_param, uint32_t event,
+                        void *buffer_description) {
   (void)device_param;
   (void)event;
 
-  adi_eth_BufDesc_t *buffer_description =
-      (adi_eth_BufDesc_t *)buffer_description_param;
   free_tx_buffer(buffer_description);
 }
 
@@ -68,7 +191,7 @@ static BmErr adin2111_netif_send(Adin2111 *self, uint8_t *data, size_t length) {
   }
   memcpy(buffer_description->pBuf, data, length);
   buffer_description->bufSize = length;
-  buffer_description->cbFunc = send_callback;
+  buffer_description->cbFunc = tx_complete;
   adin2111_SubmitTxBuffer(self->device_handle, ADIN2111_TX_PORT_FLOOD,
                           buffer_description);
 end:
@@ -81,37 +204,6 @@ static inline BmErr adin2111_netif_send_(void *self, uint8_t *data,
   return adin2111_netif_send(self, data, length);
 }
 
-// Called by the driver when the link status changes
-// If the user has registered a callback, call it
-static void link_change_callback_(void *device_param, uint32_t event,
-                                  void *status_registers_param) {
-  (void)event;
-
-  if (ADIN2111 && ADIN2111->link_change_callback) {
-    const adi_mac_StatusRegisters_t *status_registers =
-        (adi_mac_StatusRegisters_t *)status_registers_param;
-
-    int port_index = -1;
-    if (status_registers->p1StatusMasked == ADI_PHY_EVT_LINK_STAT_CHANGE) {
-      port_index = ADIN2111_PORT_1;
-    } else if (status_registers->p2StatusMasked ==
-               ADI_PHY_EVT_LINK_STAT_CHANGE) {
-      port_index = ADIN2111_PORT_2;
-    }
-
-    if (port_index >= 0) {
-      adin2111_DeviceHandle_t device_handle =
-          (adin2111_DeviceHandle_t)device_param;
-      adi_eth_LinkStatus_e status;
-      adi_eth_Result_e result =
-          adin2111_GetLinkStatus(device_handle, port_index, &status);
-      if (result == ADI_ETH_SUCCESS) {
-        ADIN2111->link_change_callback(port_index, status);
-      }
-    }
-  }
-}
-
 // Called by the driver on received data
 // If the user has registered a callback, call it
 static void receive_callback_(void *device_param, uint32_t event,
@@ -119,12 +211,12 @@ static void receive_callback_(void *device_param, uint32_t event,
   (void)device_param;
   (void)event;
 
-  if (ADIN2111 && ADIN2111->receive_callback) {
+  if (ADIN2111 && ADIN2111->callbacks && ADIN2111->callbacks->receive) {
     adi_eth_BufDesc_t *buffer_description =
         (adi_eth_BufDesc_t *)buffer_description_param;
     uint8_t port_index = 1 << buffer_description->port;
-    ADIN2111->receive_callback(port_index, buffer_description->pBuf,
-                               buffer_description->bufSize);
+    ADIN2111->callbacks->receive(port_index, buffer_description->pBuf,
+                                 buffer_description->bufSize);
   }
 }
 
@@ -136,26 +228,18 @@ static void receive_callback_(void *device_param, uint32_t event,
 BmErr adin2111_init(Adin2111 *self) {
   BmErr err = BmOK;
 
+  if (!self) {
+    err = BmEINVAL;
+    goto end;
+  }
+
   if (ADIN2111) {
     err = BmEALREADY;
     goto end;
   }
 
-  self->device_handle = &DEVICE_STRUCT;
   ADIN2111 = self;
-
-  adi_eth_Result_e result = adin2111_Init(self->device_handle, &DRIVER_CONFIG);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-
-  result = adin2111_RegisterCallback(self->device_handle, link_change_callback_,
-                                     ADI_MAC_EVT_LINK_CHANGE);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
+  self->device_handle = &DEVICE_STRUCT;
 
   for (int i = 0; i < RX_QUEUE_NUM_ENTRIES; i++) {
     adi_eth_BufDesc_t *buffer_description = &RX_BUFFERS[i];
@@ -169,37 +253,20 @@ BmErr adin2111_init(Adin2111 *self) {
     memset(buffer_description->pBuf, 0, MAX_FRAME_BUF_SIZE);
     buffer_description->bufSize = MAX_FRAME_BUF_SIZE;
     buffer_description->cbFunc = receive_callback_;
-    result = adin2111_SubmitRxBuffer(self->device_handle, buffer_description);
-    if (result != ADI_ETH_SUCCESS) {
-      err = BmENODEV;
-      goto end;
-    }
   }
 
-  result = adin2111_SyncConfig(self->device_handle);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-
-  result = adin2111_EnablePort(self->device_handle, ADIN2111_PORT_1);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
-  result = adin2111_EnablePort(self->device_handle, ADIN2111_PORT_2);
-  if (result != ADI_ETH_SUCCESS) {
-    err = BmENODEV;
-    goto end;
-  }
+  err = adin2111_netif_enable_(self);
 
 end:
   return err;
 }
 
 /// Build a generic NetworkInterface out of a concrete Adin2111
-NetworkInterface prep_adin2111_netif(Adin2111 *adin) {
+NetworkInterface prep_adin2111_netif(Adin2111 *self) {
   // Create the vtable once and attach a pointer to it every time
-  static NetworkInterfaceTrait const trait = {.send = adin2111_netif_send_};
-  return (NetworkInterface){.trait = &trait, .self = adin};
+  static NetworkInterfaceTrait const trait = {.send = adin2111_netif_send_,
+                                              .enable = adin2111_netif_enable_,
+                                              .disable =
+                                                  adin2111_netif_disable_};
+  return (NetworkInterface){.trait = &trait, .self = self};
 }

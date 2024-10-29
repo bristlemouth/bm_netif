@@ -22,13 +22,16 @@ FAKE_VALUE_FUNC(long unsigned int, __REV, long unsigned int);
 FAKE_VOID_FUNC(__disable_irq);
 FAKE_VOID_FUNC(__enable_irq);
 
+FAKE_VOID_FUNC(netif_power_cb, bool);
 FAKE_VOID_FUNC(link_changed_on_port, uint8_t, bool);
 FAKE_VALUE_FUNC(size_t, received_data_on_port, uint8_t, uint8_t *, size_t);
 
 TEST(Adin2111, send) {
-  Adin2111 adin;
-  adin.link_change_callback = link_changed_on_port;
-  adin.receive_callback = received_data_on_port;
+  static NetworkInterfaceCallbacks const callbacks = {
+      .power = netif_power_cb,
+      .link_change = link_changed_on_port,
+      .receive = received_data_on_port};
+  Adin2111 adin = {.device_handle = nullptr, .callbacks = &callbacks};
 
   // It would take a lot of mocking to pretend SPI transactions work.
   // On a real device, this should return BmOK.
