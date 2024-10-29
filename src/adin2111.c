@@ -1084,7 +1084,7 @@ adi_eth_Result_e adin2111_SetPromiscuousMode(adin2111_DeviceHandle_t hDevice, ad
             mode.P1_FWD_UNK_TO_HOST = bFlag;
             mask = BITM_MAC_CONFIG2_P1_FWD_UNK2HOST;
         }
-        else if (port == ADIN2111_PORT_2)
+        else
         {
             mode.P2_FWD_UNK_TO_HOST = bFlag;
             mask = BITM_MAC_CONFIG2_P2_FWD_UNK2HOST;
@@ -1165,7 +1165,7 @@ adi_eth_Result_e adin2111_SetPortForwardMode(adin2111_DeviceHandle_t hDevice, ad
             mode.P1_FWD_UNK_TO_P2 = bFlag;
             mask = BITM_MAC_CONFIG2_P1_FWD_UNK2P2;
         }
-        else if (port == ADIN2111_PORT_2)
+        else
         {
             mode.P2_FWD_UNK_TO_P1 = bFlag;
             mask = BITM_MAC_CONFIG2_P2_FWD_UNK2P1;
