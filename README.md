@@ -1,5 +1,11 @@
 # Bristlemouth Network Interface
 
+**This repository is being archived.
+The code has been incorporated into bm_core in PR 28:
+https://github.com/bristlemouth/bm_core/pull/28**
+
+---
+
 This repo defines the Bristlemouth `NetworkInterface` trait.
 A network interface must support an `init` method and a `send` method.
 Passed into `init` is a `Receiver`, a trait with one required method `receive`,
